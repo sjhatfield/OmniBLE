@@ -1,6 +1,6 @@
 //
 //  PodCommsSession.swift
-//  OmnipodKit
+//  OmniBLE
 //
 //  From OmniKit/PumpManager/PodCommsSession.swift
 //  Created by Pete Schwamb on 10/13/17.
@@ -38,6 +38,7 @@ public enum PodCommsError: Error {
     case podIncompatible(str: String)
     case noPodsFound
     case tooManyPodsFound
+    case setupNotComplete
 }
 
 extension PodCommsError: LocalizedError {
@@ -96,7 +97,8 @@ extension PodCommsError: LocalizedError {
             return LocalizedString("No pods found", comment: "Error message for PodCommsError.noPodsFound")
         case .tooManyPodsFound:
             return LocalizedString("Too many pods found", comment: "Error message for PodCommsError.tooManyPodsFound")
-
+        case .setupNotComplete:
+            return LocalizedString("Pod setup is not complete", comment: "Error description when pod setup is not complete")
         }
     }
     
@@ -158,6 +160,8 @@ extension PodCommsError: LocalizedError {
             return LocalizedString("Make sure your pod is filled and nearby.", comment: "Recovery suggestion for PodCommsError.noPodsFound")
         case .tooManyPodsFound:
             return LocalizedString("Move to a new area away from any other pods and try again.", comment: "Recovery suggestion for PodCommsError.tooManyPodsFound")
+        case .setupNotComplete:
+            return nil
         }
     }
 
@@ -274,6 +278,9 @@ public class PodCommsSession {
 
             let message = Message(address: podState.address, messageBlocks: blocksToSend, sequenceNum: messageNumber, expectFollowOnMessage: expectFollowOnMessage)
 
+            // Clear the lastDeliveryStatusReceived variable which is used to guard against possible 0x31 pod faults
+            podState.lastDeliveryStatusReceived = nil
+
             let response = try transport.sendMessage(message)
             
             // Simulate fault
@@ -367,6 +374,7 @@ public class PodCommsSession {
             podState.updateFromStatusResponse(status, at: currentDate)
             if status.podProgressStatus == .basalInitialized {
                 podState.setupProgress = .initialBasalScheduleSet
+                podState.finalizedDoses.append(UnfinalizedDose(resumeStartTime: currentDate, scheduledCertainty: .certain, insulinType: podState.insulinType))
                 return
             }
         }
@@ -494,14 +502,18 @@ public class PodCommsSession {
         let timeBetweenPulses = TimeInterval(seconds: Pod.secondsPerBolusPulse)
         let bolusScheduleCommand = SetInsulinScheduleCommand(nonce: podState.currentNonce, units: units, timeBetweenPulses: timeBetweenPulses, extendedUnits: extendedUnits, extendedDuration: extendedDuration)
         
-        if podState.unfinalizedBolus != nil {
-            var ongoingBolus = true
+        // Do a get status here to verify that there isn't an on-going bolus in progress if the last bolus command
+        // is still not finalized OR we don't have the last pod delivery status confirming that no bolus is active.
+        if podState.unfinalizedBolus != nil || podState.lastDeliveryStatusReceived == nil || podState.lastDeliveryStatusReceived!.bolusing {
             if let statusResponse: StatusResponse = try? send([GetStatusCommand()]) {
                 podState.updateFromStatusResponse(statusResponse, at: currentDate)
-                ongoingBolus = podState.unfinalizedBolus != nil
-            }
-            guard !ongoingBolus else {
-                return DeliveryCommandResult.certainFailure(error: .unfinalizedBolus)
+                guard podState.unfinalizedBolus == nil else {
+                    log.default("bolus: pod is still bolusing")
+                    return DeliveryCommandResult.certainFailure(error: .unfinalizedBolus)
+                }
+            } else {
+                log.default("bolus: failed to read pod status to verify there is no bolus running")
+                return DeliveryCommandResult.certainFailure(error: .noResponse)
             }
         }
 
@@ -602,6 +614,11 @@ public class PodCommsSession {
             return .certainFailure(error: .unacknowledgedCommandPending)
         }
 
+        guard podState.setupProgress == .completed else {
+            // A cancel delivery command before pod setup is complete will fault the pod
+            return .certainFailure(error: PodCommsError.setupNotComplete)
+        }
+
         do {
             var alertConfigurations: [AlertConfiguration] = []
             var podSuspendedReminderAlert: PodAlert? = nil
@@ -679,6 +696,11 @@ public class PodCommsSession {
             return .certainFailure(error: .unacknowledgedCommandPending)
         }
 
+        guard podState.setupProgress == .completed else {
+            // A cancel delivery command before pod setup is complete will fault the pod
+            return .certainFailure(error: PodCommsError.setupNotComplete)
+        }
+
         do {
             podState.unacknowledgedCommand = PendingCommand.stopProgram(deliveryType, transport.messageNumber, currentDate)
             let cancelDeliveryCommand = CancelDeliveryCommand(nonce: podState.currentNonce, deliveryType: deliveryType, beepType: beepType)
@@ -727,6 +749,14 @@ public class PodCommsSession {
         let basalExtraCommand = BasalScheduleExtraCommand.init(schedule: schedule, scheduleOffset: scheduleOffset, acknowledgementBeep: acknowledgementBeep, programReminderInterval: programReminderInterval)
 
         do {
+            if !podState.isSuspended || podState.lastDeliveryStatusReceived == nil || !podState.lastDeliveryStatusReceived!.suspended {
+                // The podState or the last pod delivery status return indicates that the pod is not currently suspended.
+                // So execute a cancel all command here before setting the basal to prevent a possible 0x31 pod fault,
+                // but only when the pod startup is complete as a cancel command during pod setup also fault the pod!
+                if podState.setupProgress == .completed  {
+                    let _: StatusResponse = try send([CancelDeliveryCommand(nonce: podState.currentNonce, deliveryType: .all, beepType: .noBeepCancel)])
+                }
+            }
             var status: StatusResponse = try send([basalScheduleCommand, basalExtraCommand])
             let now = currentDate
             podState.suspendState = .resumed(now)
@@ -856,10 +886,10 @@ public class PodCommsSession {
             self.log.default("Recovering from unacknowledged command %{public}@, status = %{public}@", String(describing: pendingCommand), String(describing: status))
 
             if status.lastProgrammingMessageSeqNum == pendingCommand.sequence {
-                self.log.debug("Unacknowledged command was received by pump")
+                self.log.default("Unacknowledged command was received by pump")
                 unacknowledgedCommandWasReceived(pendingCommand: pendingCommand, podStatus: status)
             } else {
-                self.log.debug("Unacknowledged command was not received by pump")
+                self.log.default("Unacknowledged command was not received by pump")
             }
             podState.unacknowledgedCommand = nil
         }
