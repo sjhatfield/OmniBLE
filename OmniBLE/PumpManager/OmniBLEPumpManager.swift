@@ -888,6 +888,7 @@ extension OmniBLEPumpManager {
                     self.podComms.pairAndSetupPod(timeZone: .currentFixed, insulinType: insulinType, messageLogger: self)
                     { (result) in
 
+                        // Have new podState, reset all the per pod pump manager state
                         self.resetPerPodPumpManagerState()
 
                         // Calls completion
@@ -904,7 +905,6 @@ extension OmniBLEPumpManager {
             self.resumingPodSetup()
 
             self.podComms.runSession(withName: "Prime pod") { (result) in
-
                 // Calls completion
                 primeSession(result)
             }
