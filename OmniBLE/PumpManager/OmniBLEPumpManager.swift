@@ -920,10 +920,10 @@ extension OmniBLEPumpManager {
         let mockFaultDuringInsertCannula = false
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + mockDelay) {
             let result = self.setStateWithResult({ (state) -> Result<TimeInterval,OmniBLEPumpManagerError> in
-            if mockFaultDuringInsertCannula {
-                let fault = try! DetailedStatus(encodedData: Data(hexadecimalString: "020d0000000e00c36a020703ff020900002899080082")!)
-                var podState = state.podState
-                podState?.fault = fault
+                if mockFaultDuringInsertCannula {
+                    let fault = try! DetailedStatus(encodedData: Data(hexadecimalString: "020d0000000e00c36a020703ff020900002899080082")!)
+                    var podState = state.podState
+                    podState?.fault = fault
                     state.updatePodStateFromPodComms(podState)
                     return .failure(OmniBLEPumpManagerError.communication(PodCommsError.podFault(fault: fault)))
                 }
