@@ -900,7 +900,11 @@ extension OmniBLEPumpManager {
         } else {
             self.log.default("Pod already paired. Continuing.")
 
+            // Resuming the pod setup, try to ensure pod comms will work right away
+            self.resumingPodSetup()
+
             self.podComms.runSession(withName: "Prime pod") { (result) in
+
                 // Calls completion
                 primeSession(result)
             }
@@ -916,10 +920,10 @@ extension OmniBLEPumpManager {
         let mockFaultDuringInsertCannula = false
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + mockDelay) {
             let result = self.setStateWithResult({ (state) -> Result<TimeInterval,OmniBLEPumpManagerError> in
-                if mockFaultDuringInsertCannula {
-                    let fault = try! DetailedStatus(encodedData: Data(hexadecimalString: "020d0000000e00c36a020703ff020900002899080082")!)
-                    var podState = state.podState
-                    podState?.fault = fault
+            if mockFaultDuringInsertCannula {
+                let fault = try! DetailedStatus(encodedData: Data(hexadecimalString: "020d0000000e00c36a020703ff020900002899080082")!)
+                var podState = state.podState
+                podState?.fault = fault
                     state.updatePodStateFromPodComms(podState)
                     return .failure(OmniBLEPumpManagerError.communication(PodCommsError.podFault(fault: fault)))
                 }
@@ -959,6 +963,10 @@ extension OmniBLEPumpManager {
         self.podComms.runSession(withName: "Insert cannula") { (result) in
             switch result {
             case .success(let session):
+                if self.state.podState?.setupProgress.cannulaInsertionSuccessfullyStarted == true {
+                    // Resuming the pod setup, try to ensure pod comms will work right away
+                    self.resumingPodSetup()
+                }
                 do {
                     if self.state.podState?.setupProgress.needsInitialBasalSchedule == true {
                         let scheduleOffset = timeZone.scheduleOffset(forDate: Date())
@@ -1011,6 +1019,33 @@ extension OmniBLEPumpManager {
         #endif
     }
 
+    // Called when resuming a pod setup operation which sometimes can fail on the first pod command in various situations.
+    // Attempting a getStatus and sleeping a couple of seconds on errors greatly improves the odds for first pod command success.
+    public func resumingPodSetup() {
+        let sleepTime:UInt32 = 2
+
+        if !isConnected {
+            self.log.debug("### Pod setup resume pod not connected, sleeping %d seconds", sleepTime)
+            sleep(sleepTime)
+        }
+
+        podComms.runSession(withName: "Resuming pod setup") { (result) in
+            switch result {
+            case .success(let session):
+                let status = try? session.getStatus()
+                if status == nil {
+                    self.log.debug("### Pod setup resume getStatus failed, sleeping %d seconds", sleepTime)
+                    sleep(sleepTime)
+                }
+            case .failure(let error):
+                self.log.debug("### Pod setup resume session failure, sleeping %d seconds: %@", sleepTime, error.localizedDescription)
+                sleep(sleepTime)
+            }
+        }
+    }
+
+    // MARK: - Pump Commands
+
     public func getPodStatus(completion: ((_ result: PumpManagerResult<StatusResponse>) -> Void)? = nil) {
         guard state.hasActivePod else {
             completion?(.failure(PumpManagerError.configuration(OmniBLEPumpManagerError.noPodPaired)))
@@ -1037,8 +1072,6 @@ extension OmniBLEPumpManager {
             }
         }
     }
-
-    // MARK: - Pump Commands
 
     public func acknowledgePodAlerts(_ alertsToAcknowledge: AlertSet, completion: @escaping (_ alerts: [AlertSlot: PodAlert]?) -> Void) {
         guard self.hasActivePod else {
