@@ -210,6 +210,7 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "Corruption in byte_BF0"
         case .tableCorruptionTempBasalSubcommand:
             return "Temp basal subcommand table corruption"
+
         case .resetDueToCOP:
             return "Reset due to COP"
         case .resetDueToIllegalOpcode:
@@ -310,6 +311,7 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "Problem with pump anchor"
         case .errorFlashWrite:
             return "Flash initialization or write error"
+
         case .encoderCountTooHigh:
             return "Encoder count too high"
         case .encoderCountExcessiveVariance:
@@ -338,6 +340,8 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "find_best_trim_value problem"
         case .badSetTPM1MultiCasesValue:
             return "Bad set_TPM1_multi_cases value"
+        case .sawTrimError:
+            return "SAW Trim Error"
         case .unexpectedRFErrorFlagDuringReset:
             return "Unexpected TXSCR2 RF Tranmission Error Flag set during reset"
         case .timerPulseWidthModulatorOverflow:
@@ -378,6 +382,7 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "Occlusion check startup problem 2"
         case .occlusionCheckTimeouts1:
             return "Occlusion check excess timeouts 1"
+
         case .occlusionCheckTimeouts2:
             return "Occlusion check excess timeouts 2"
         case .occlusionCheckTimeouts3:
@@ -388,6 +393,7 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "Occlusion check bolus problem"
         case .occlusionCheckAboveThreshold:
             return "Occlusion check above threshold"
+
         case .basalUnderInfusion:
             return "Basal under infusion"
         case .basalOverInfusion:
@@ -434,12 +440,14 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "Bad variable state in clear_Bolus_IST2_and_vars"
         case .badStateInMaybeInc33D:
             return "Bad variable state in maybe_inc_33D"
+
         case .bleTimeout:
             return "BLE timeout"
         case .bleInitiated:
             return "BLE initiated"
         case .bleUnkAlarm:
             return "BLE unknown alarm"
+
         case .bleIaas:
             return "BLE IAAS"
         case .crcFailure:
@@ -454,6 +462,7 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "BLE request high timeout"
         case .bleUnknownResp:
             return "BLE unknown response"
+
         case .bleReqStuckHigh:
             return "BLE request stuck high"
         case .bleStateMachine1:
@@ -468,7 +477,13 @@ public struct FaultEventCode: CustomStringConvertible, Equatable {
             return "BLE QN exceed max retry"
         case .bleQnCritVarFail:
             return "BLE QN critical variable fail"
-        default:
+
+        case .resetFault0xD6, .resetFault0xD7:
+            return "Reset fault of unknown origin"
+        case .unknown0xCB, .unknown0xD4, .unknown0xD5, .unknown0xD8, .unknown0xD9, .none:
+            return "Unknown fault"
+
+        case .valuesDoNotMatch:
             return "Unknown fault code"
         }
     }
