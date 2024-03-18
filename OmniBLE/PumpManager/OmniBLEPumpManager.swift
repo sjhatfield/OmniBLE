@@ -1101,23 +1101,29 @@ extension OmniBLEPumpManager {
 
     public func setTime(completion: @escaping (OmniBLEPumpManagerError?) -> Void) {
 
-        guard state.hasActivePod else {
-            completion(OmniBLEPumpManagerError.noPodPaired)
+        let timeZone = TimeZone.currentFixed
+        guard let podState = state.podState, podState.fault == nil else {
+            // With no non-faulted pod just update our pump manager
+            // state with the current timezone and return success
+            // instead of an inappropriate "No pod paired" error.
+            self.setState { (state) in
+                state.timeZone = timeZone
+            }
+            completion(nil)
             return
         }
 
-        guard state.podState?.setupProgress == .completed else {
+        guard podState.isSetupComplete else {
             // A cancel delivery command before pod setup is complete will fault the pod
             completion(.state(PodCommsError.setupNotComplete))
             return
         }
 
-        guard state.podState?.unfinalizedBolus?.isFinished() != false else {
+        guard podState.unfinalizedBolus?.isFinished() != false else {
             completion(.state(PodCommsError.unfinalizedBolus))
             return
         }
 
-        let timeZone = TimeZone.currentFixed
         self.podComms.runSession(withName: "Set time zone") { (result) in
             switch result {
             case .success(let session):
@@ -1152,7 +1158,7 @@ extension OmniBLEPumpManager {
             }
 
             guard state.podState?.unfinalizedBolus?.isFinished() != false else {
-                return .failure(.deviceState(PodCommsError.unfinalizedBolus))
+                return .failure(PumpManagerError.deviceState(PodCommsError.unfinalizedBolus))
             }
 
             return .success(true)
