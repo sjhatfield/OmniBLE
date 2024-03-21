@@ -135,14 +135,6 @@ public class OmniBLEPumpManager: DeviceManager {
         return setStateWithResult(changes)
     }
 
-    @discardableResult
-    private func mutateState(_ changes: (_ state: inout OmniBLEPumpManagerState) -> Void) -> OmniBLEPumpManagerState {
-        return setStateWithResult({ (state) -> OmniBLEPumpManagerState in
-            changes(&state)
-            return state
-        })
-    }
-
     // Status can change even when state does not, because some status changes
     // purely based on time. This provides a mechanism to evaluate status changes
     // as time progresses and trigger status updates to clients.
@@ -553,7 +545,7 @@ extension OmniBLEPumpManager {
 
     public var defaultExpirationReminderOffset: TimeInterval {
         set {
-            mutateState { (state) in
+            setState { (state) in
                 state.defaultExpirationReminderOffset = newValue
             }
         }
@@ -564,7 +556,7 @@ extension OmniBLEPumpManager {
 
     public var lowReservoirReminderValue: Double {
         set {
-            mutateState { (state) in
+            setState { (state) in
                 state.lowReservoirReminderValue = newValue
             }
         }
@@ -575,7 +567,7 @@ extension OmniBLEPumpManager {
 
     public var podAttachmentConfirmed: Bool {
         set {
-            mutateState { (state) in
+            setState { (state) in
                 state.podAttachmentConfirmed = newValue
             }
         }
@@ -586,7 +578,7 @@ extension OmniBLEPumpManager {
 
     public var initialConfigurationCompleted: Bool {
         set {
-            mutateState { (state) in
+            setState { (state) in
                 state.initialConfigurationCompleted = newValue
             }
         }
@@ -2112,7 +2104,7 @@ extension OmniBLEPumpManager: PumpManager {
     }
 
     public func syncDeliveryLimits(limits deliveryLimits: DeliveryLimits, completion: @escaping (Result<DeliveryLimits, Error>) -> Void) {
-        mutateState { state in
+        setState { state in
             if let rate = deliveryLimits.maximumBasalRate?.doubleValue(for: .internationalUnitsPerHour) {
                 state.maximumTempBasalRate = rate
                 completion(.success(deliveryLimits))
@@ -2276,7 +2268,7 @@ extension OmniBLEPumpManager: PumpManager {
             }
         }
 
-        self.mutateState { (state) in
+        self.setState { (state) in
             state.activeAlerts.insert(alert)
         }
     }
@@ -2292,7 +2284,7 @@ extension OmniBLEPumpManager: PumpManager {
                 delegate?.retractAlert(identifier: repeatingIdentifier)
             }
         }
-        self.mutateState { (state) in
+        self.setState { (state) in
             state.activeAlerts.remove(alert)
         }
     }
@@ -2357,7 +2349,7 @@ extension OmniBLEPumpManager: PumpManager {
                         } catch {
                             return
                         }
-                        self.mutateState { state in
+                        self.setState { state in
                             state.activeAlerts.remove(alert)
                             state.alertsWithPendingAcknowledgment.remove(alert)
                         }
@@ -2500,7 +2492,7 @@ extension OmniBLEPumpManager: PodCommsDelegate {
             }
         } else {
             // Resetting podState
-            mutateState { state in
+            setState { state in
                 state.updatePodStateFromPodComms(podState)
             }
         }
@@ -2543,18 +2535,18 @@ extension OmniBLEPumpManager {
                                 let beepBlock = self.beepMessageBlock(beepType: .beep)
                                 let _ = try session.acknowledgeAlerts(alerts: AlertSet(slots: [slot]), beepBlock: beepBlock)
                             } catch {
-                                self.mutateState { state in
+                                self.setState { state in
                                     state.alertsWithPendingAcknowledgment.insert(alert)
                                 }
                                 completion(error)
                                 return
                             }
-                            self.mutateState { state in
+                            self.setState { state in
                                 state.activeAlerts.remove(alert)
                             }
                             completion(nil)
                         case .failure(let error):
-                            self.mutateState { state in
+                            self.setState { state in
                                 state.alertsWithPendingAcknowledgment.insert(alert)
                             }
                             completion(error)
@@ -2563,7 +2555,7 @@ extension OmniBLEPumpManager {
                     }
                 } else {
                     // Non-pod alert
-                    self.mutateState { state in
+                    self.setState { state in
                         state.activeAlerts.remove(alert)
                         if alert == .timeOffsetChangeDetected {
                             state.acknowledgedTimeOffsetAlert = true
