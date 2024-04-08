@@ -264,7 +264,10 @@ struct OmniBLESettingsView: View  {
                 VStack(alignment: .trailing) {
                     Button(action: {
                         sendingTestBeepsCommand = true
-                        viewModel.playTestBeeps { _ in
+                        Task { @MainActor in
+                            do {
+                                try await viewModel.playTestBeeps()
+                            }
                             sendingTestBeepsCommand = false
                         }
                     }) {
@@ -479,7 +482,9 @@ struct OmniBLESettingsView: View  {
             Section() {
                 NavigationLink(destination: PodDiagnosticsView(
                     title: LocalizedString("Pod Diagnostics", comment: "Title for the pod diagnostic view"),
-                    viewModel: viewModel))
+                    diagnosticCommands: viewModel.diagnosticCommands,
+                    podOk: viewModel.podOk,
+                    noPod: viewModel.noPod))
                 {
                     FrameworkLocalText("Pod Diagnostics", comment: "Text for pod diagnostics row")
                         .foregroundColor(Color.primary)
