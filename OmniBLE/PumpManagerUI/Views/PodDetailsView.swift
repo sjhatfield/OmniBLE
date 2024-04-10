@@ -114,7 +114,7 @@ struct PodDetailsView: View {
                         Text(String(describing: fault))
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.secondary)
-                        Text("Ref: " + pdmRef)
+                        Text(String(format: LocalizedString("Internal Pod fault code %1$03d\n%2$@\nRef: %3$@\n", comment: "The format string for the pod fault info: (1: fault code) (2: fault description) (3: pdm ref string)"), fault.rawValue, fault.faultDescription, pdmRef))
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.secondary)
                     }
