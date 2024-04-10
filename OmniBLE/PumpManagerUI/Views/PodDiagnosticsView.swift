@@ -1,5 +1,5 @@
 //
-//  PodDiagnotics.swift
+//  PodDiagnosticsView.swift
 //  OmniBLE
 //
 //  Created by Joseph Moran on 11/25/23.
