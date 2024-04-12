@@ -242,7 +242,7 @@ struct OmniBLESettingsView: View  {
     }
     
     private var doneButton: some View {
-        Button("Done", action: {
+        Button(LocalizedString("Done", comment: "Title of done button on OmniBLESettingsView"), action: {
             self.viewModel.doneTapped()
         })
     }

@@ -47,6 +47,8 @@ extension OmniBLEPumpManagerError: LocalizedError {
             return LocalizedString("Insulin type not configured", comment: "Error description for insulin type not configured")
         case .notReadyForCannulaInsertion:
             return LocalizedString("Pod is not in a state ready for cannula insertion.", comment: "Error message when cannula insertion fails because the pod is in an unexpected state")
+        case .invalidSetting:
+            return LocalizedString("Invalid Setting", comment: "Error description for invalid setting")
         case .communication(let error):
             if let error = error as? LocalizedError {
                 return error.errorDescription
@@ -59,8 +61,6 @@ extension OmniBLEPumpManagerError: LocalizedError {
             } else {
                 return String(describing: error)
             }
-        case .invalidSetting:
-            return LocalizedString("Invalid Setting", comment: "Error description for invalid setting")
         }
     }
 
@@ -885,13 +885,12 @@ extension OmniBLEPumpManager {
         })
 
         if needsPairing {
-
-            self.log.default("Pairing pod before priming")
-
             guard let insulinType = insulinType else {
                 completion(.failure(.configuration(OmniBLEPumpManagerError.insulinTypeNotConfigured)))
                 return
             }
+
+            self.log.default("Pairing pod before priming")
 
             connectToNewPod(completion: { result in
                 switch result {
@@ -2556,7 +2555,6 @@ extension OmniBLEPumpManager {
                                 state.alertsWithPendingAcknowledgment.insert(alert)
                             }
                             completion(error)
-                            return
                         }
                     }
                 } else {
@@ -2584,7 +2582,7 @@ extension FaultEventCode {
         case .exceededMaximumPodLife80Hrs:
             return LocalizedString("Pod Expired", comment: "The title for Pod Expired alarm notification")
         default:
-            return LocalizedString("Critical Pod Error", comment: "The title for AlarmCode.other notification")
+            return String(format: LocalizedString("Critical Pod Fault %1$03d", comment: "The title for AlarmCode.other notification: (1: fault code value)"), self.rawValue)
         }
     }
 
