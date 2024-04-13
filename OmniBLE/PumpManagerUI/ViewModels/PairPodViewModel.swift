@@ -180,6 +180,30 @@ class PairPodViewModel: ObservableObject, Identifiable {
         }
     }
 
+    // Return a user friendly DashPairingError for the reported PumpManagerError when no pod was found
+    private func noPodError(_ pumpManagerError: PumpManagerError) -> DashPairingError {
+        print("### noPodError encountered error \(pumpManagerError.localizedDescription)")
+        switch (pumpManagerError) {
+        case .communication(let error):
+            if let podCommsError = error as? PodCommsError {
+                switch podCommsError {
+                case .noPodsFound:
+                    // Just use this error as is for a "No pods found" error
+                    return DashPairingError.pumpManagerError(.communication(error))
+                default:
+                    break
+                }
+            }
+        default:
+            break
+        }
+
+        // Use a more user friendly possible bluetooth error for any other errors resulting in no pod
+        let possibleBluetoothError = DashPairingError.pumpManagerError(.communication(PodCommsError.possibleBluetoothIssue))
+        print("### noPodError returning error \(possibleBluetoothError.localizedDescription)")
+        return possibleBluetoothError
+    }
+
     private func pairAndPrime() {
         if podPairer.podCommState == .noPod {
             state = .pairing
@@ -193,7 +217,7 @@ class PairPodViewModel: ObservableObject, Identifiable {
                 switch status {
                 case .failure(let error):
                     if self.podPairer.podCommState == .noPod {
-                        let pairAndPrimeError = DashPairingError.pumpManagerError(error)
+                        let pairAndPrimeError = self.noPodError(error)
                         self.state = .error(pairAndPrimeError)
                     } else if self.autoRetryAttempted {
                         self.autoRetryAttempted = false // allow for an auto retry on the next user attempt
