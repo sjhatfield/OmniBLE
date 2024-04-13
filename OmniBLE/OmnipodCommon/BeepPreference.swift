@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 public enum BeepPreference: Int, CaseIterable {
     case silent
@@ -25,13 +26,15 @@ public enum BeepPreference: Int, CaseIterable {
     }
 
     var description: String {
+        @Environment(\.appName) var appName
+
         switch self {
         case .silent:
             return LocalizedString("No confidence reminders are used.", comment: "Description for BeepPreference.silent")
         case .manualCommands:
-            return LocalizedString("Confidence reminders will sound for commands you initiate, like bolus, cancel bolus, suspend, resume, save notification reminders, etc. When Loop automatically adjusts delivery, no confidence reminders are used.", comment: "Description for BeepPreference.manualCommands")
+            return String(format: LocalizedString("Confidence reminders will sound for commands you initiate, like bolus, cancel bolus, suspend, resume, save notification reminders, etc. When %1$@ automatically adjusts delivery, no confidence reminders are used.", comment: "Description for BeepPreference.manualCommands (1: appName)"), appName)
         case .extended:
-            return LocalizedString("Confidence reminders will sound when Loop automatically adjusts delivery as well as for commands you initiate.", comment: "Description for BeepPreference.extended")
+            return String(format: LocalizedString("Confidence reminders will sound when %1$@ automatically adjusts delivery as well as for commands you initiate.", comment: "Description for BeepPreference.extended (1: appName)"), appName)
         }
     }
 
