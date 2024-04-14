@@ -26,7 +26,10 @@ public enum BeepPreference: Int, CaseIterable {
     }
 
     var description: String {
-        @Environment(\.appName) var appName
+        // This picks up the DefaultValue from LoopKit, not the CFBundleDisplayName
+        //@Environment(\.appName) var appName
+        // ToDo - insert the appName properly
+        let appName: String = "the app"
 
         switch self {
         case .silent:
