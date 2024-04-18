@@ -875,16 +875,12 @@ extension OmniBLEPumpManager {
             }
         }
 
-        let needsPairing = setStateWithResult({ (state) -> Bool in
-            guard let podState = state.podState else {
-                return true // Needs pairing
-            }
-
-            // Return true if not yet paired
-            return podState.setupProgress.isPaired == false
-        })
-
-        if needsPairing {
+        // For a restart in the middle of pod setup, the pod can only continue
+        // if interruption happened after pod was completely paired.
+        // Unfortunately podState.setupProgress.isPaired can’t be relied on upon
+        // for some restarts. This code enables user to continue if they have a
+        // fully paired pod.
+        if self.state.podState == nil {
             guard let insulinType = insulinType else {
                 completion(.failure(.configuration(OmniBLEPumpManagerError.insulinTypeNotConfigured)))
                 return
