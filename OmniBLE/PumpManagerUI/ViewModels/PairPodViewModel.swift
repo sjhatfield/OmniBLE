@@ -180,28 +180,6 @@ class PairPodViewModel: ObservableObject, Identifiable {
         }
     }
 
-    // Return a suitable DashPairingError for the returned PumpManagerError
-    private func mapPumpManagerError(_ pumpManagerError: PumpManagerError) -> DashPairingError {
-        print("### mapPumpManagerError encountered error \(pumpManagerError.localizedDescription)")
-        switch (pumpManagerError) {
-        case .communication(let error):
-            if let podCommsError = error as? PodCommsError {
-                switch podCommsError {
-                case .commsError(let error):
-                    // Return a possible bluetooth error for any lower level comms errors
-                    let possibleBluetoothError = DashPairingError.pumpManagerError(.communication(PodCommsError.possibleBluetoothIssue))
-                    print("### mapPumpManagerError returning error \(possibleBluetoothError.localizedDescription)")
-                    return possibleBluetoothError
-                default:
-                    break
-                }
-            }
-        default:
-            break
-        }
-        return DashPairingError.pumpManagerError(pumpManagerError)
-    }
-
     private func pairAndPrime() {
         if podPairer.podCommState == .noPod {
             state = .pairing
@@ -215,11 +193,11 @@ class PairPodViewModel: ObservableObject, Identifiable {
                 switch status {
                 case .failure(let error):
                     if self.podPairer.podCommState == .noPod {
-                        let pairAndPrimeError = self.mapPumpManagerError(error)
+                        let pairAndPrimeError = DashPairingError.pumpManagerError(error)
                         self.state = .error(pairAndPrimeError)
                     } else if self.autoRetryAttempted {
                         self.autoRetryAttempted = false // allow for an auto retry on the next user attempt
-                        let pairAndPrimeError = self.mapPumpManagerError(error)
+                        let pairAndPrimeError = DashPairingError.pumpManagerError(error)
                         self.state = .error(pairAndPrimeError)
                     } else {
                         self.autoRetryAttempted = true

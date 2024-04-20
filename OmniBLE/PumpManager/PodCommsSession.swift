@@ -39,7 +39,6 @@ public enum PodCommsError: Error {
     case noPodsFound
     case tooManyPodsFound
     case setupNotComplete
-    case possibleBluetoothIssue
 }
 
 extension PodCommsError: LocalizedError {
@@ -100,8 +99,6 @@ extension PodCommsError: LocalizedError {
             return LocalizedString("Too many pods found", comment: "Error message for PodCommsError.tooManyPodsFound")
         case .setupNotComplete:
             return LocalizedString("Pod setup is not complete", comment: "Error description when pod setup is not complete")
-        case .possibleBluetoothIssue:
-            return LocalizedString("Possible Bluetooth issue", comment: "Error description for possible bluetooth issue")
         }
     }
     
@@ -165,8 +162,6 @@ extension PodCommsError: LocalizedError {
             return LocalizedString("Move to a new area away from any other pods and try again.", comment: "Recovery suggestion for PodCommsError.tooManyPodsFound")
         case .setupNotComplete:
             return nil
-        case .possibleBluetoothIssue:
-            return LocalizedString("Toggle Bluetooth off and then on in iPhone Settings; then try again.", comment: "Recovery suggestion for possible bluetooth issue")
         }
     }
 
@@ -253,8 +248,6 @@ public class PodCommsSession {
     ///     - PodCommsError.rejectedMessage
     ///     - PodCommsError.nonceResyncFailed
     ///     - MessageError
-    ///     - PeripheralManagerError
-    ///     - PodProtocolError
     func send<T: MessageBlock>(_ messageBlocks: [MessageBlock], beepBlock: MessageBlock? = nil, expectFollowOnMessage: Bool = false) throws -> T {
         
         var triesRemaining = 2  // Retries only happen for nonce resync
