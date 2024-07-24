@@ -1848,8 +1848,8 @@ extension OmniBLEPumpManager: PumpManager {
                 state.bolusEngageState = .engaging
             })
 
-            if let podState = self.state.podState, podState.isSuspended || podState.lastDeliveryStatusReceived?.suspended != false {
-                self.log.error("enactBolus: returning pod suspended error for bolus")
+            if let podState = self.state.podState, podState.isSuspended || podState.lastDeliveryStatusReceived?.suspended == true {
+                self.log.error("Not enacting bolus because podState or last status received indicates pod is suspended")
                 completion(.deviceState(PodCommsError.podSuspended))
                 return
             }
@@ -1989,8 +1989,8 @@ extension OmniBLEPumpManager: PumpManager {
                 return
             }
 
-            if let podState = self.state.podState, podState.isSuspended || podState.lastDeliveryStatusReceived?.suspended != false {
-                self.log.info("Not enacting temp basal because podState indicates pod is suspended.")
+            if let podState = self.state.podState, podState.isSuspended || podState.lastDeliveryStatusReceived?.suspended == true {
+                self.log.info("Not enacting temp basal because podState or last status received indicates pod is suspended")
                 completion(.deviceState(PodCommsError.podSuspended))
                 return
             }
